@@ -8,7 +8,7 @@ Each step below maps to the correspondingly-numbered `# ─── N.` section in
 Steps:
 1. Copy .xaml/.cs/.resw/asset/.appxmanifest from source to target, preserving folder structure
 1b. Merge sibling `shared/` folder (cross-language SDK Sample layout) if present — flat-copy its files into target root so they participate in namespace rewrite and inventory scan. UWP samples that support multiple languages keep .xaml in `<sample>\shared\` (referenced by `<Page Include="..\shared\X.xaml" />` in the cs csproj) and `-Source <sample>\cs\` alone would miss them.
-2. Preserve the UWP .csproj at .uwp-source/ as a read-only reference
+2. Preserve the UWP .csproj at .uwp-source/ as .csproj.reference (prevents MSBuild discovery)
 2b. Patch WinUI 3 .csproj RuntimeIdentifier to follow $(Platform) (fixes NETSDK1083 "RID 'win-arm64' and PlatformTarget 'x64' must be compatible" on ARM64 hosts where VS opens the project at solution platform x64)
 3. Namespace mass-rewrite: Windows.UI.Xaml → Microsoft.UI.Xaml across all copied .cs/.xaml
 4a. Filter-prone class neutralization (RootFrameNavigationHelper → no-op stub, etc.)
@@ -128,9 +128,10 @@ if ($uwpCsprojs.Count -gt 0) {
         New-Item -ItemType Directory -Path $refDir -Force | Out-Null
     }
     foreach ($p in $uwpCsprojs) {
-        $dst = Join-Path $refDir $p.Name
+        $refName = $p.Name + '.reference'
+        $dst = Join-Path $refDir $refName
         Copy-Item -LiteralPath $p.FullName -Destination $dst -Force
-        Write-Host "    Preserved $($p.Name) at .uwp-source/ (reference only — do not edit, do not include in build)"
+        Write-Host "    Preserved $($p.Name) as .uwp-source/$refName (reference only — MSBuild won't discover this extension)"
     }
 } else {
     Write-Warning "    No .csproj found under Source — agent has no reference for original PackageReference list"
@@ -529,7 +530,7 @@ Write-Host "Artifacts:"
 Write-Host "  MIGRATION-MAPPING.md       (triage labels per file)"
 Write-Host "  MIGRATION-DEFERRED.md      (pre-seeded; anchors only)"
 Write-Host "  .bootstrap-meta.json       (per-file mode, schema v2)"
-Write-Host "  .uwp-source/               (original UWP .csproj for reference)"
+Write-Host "  .uwp-source/               (original UWP .csproj.reference for reference)"
 Write-Host "Next:"
 Write-Host "  1. Open a TODO-bearing source file (search for TODO[migrate- )"
 Write-Host "  2. Read its mode in .bootstrap-meta.json (perFileMode[<path>])"

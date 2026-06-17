@@ -796,7 +796,7 @@ public void Control_DefaultState_IsValid()
 
 ### PackageReference reconciliation cheat-sheet
 
-`Initialize-UwpMigration.ps1` preserves the UWP `.csproj` at `<Target>/.uwp-source/` and leaves the WinUI 3 scaffold's `.csproj` intact. Open both side-by-side and merge:
+`Initialize-UwpMigration.ps1` preserves the UWP `.csproj` at `<Target>/.uwp-source/*.csproj.reference` (renamed to prevent MSBuild discovery) and leaves the WinUI 3 scaffold's `.csproj` intact. Open both side-by-side and merge:
 
 - **Drop** (UWP-only — never carry over):
   - `Microsoft.NETCore.UniversalWindowsPlatform`

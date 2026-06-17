@@ -88,7 +88,7 @@ Walk each row: `migrate-as-is` → flip to `done` when the file appears in the f
 
 ### Step 2 — Reconcile the project file
 
-The scaffold's `.csproj` is wired for WinAppSDK; the UWP `.csproj` at `.uwp-source/` is your reference for extras to merge. Fetch the cheat-sheet:
+The scaffold's `.csproj` is wired for WinAppSDK; the UWP `.csproj.reference` at `.uwp-source/` is your reference for extras to merge. Fetch the cheat-sheet:
 
 ```powershell
 & "<skill-root>/scripts/Get-MigrationPattern.ps1" -Anchor csproj
