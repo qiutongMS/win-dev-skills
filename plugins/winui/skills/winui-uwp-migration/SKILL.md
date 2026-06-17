@@ -103,6 +103,12 @@ winapp build
 winapp run    # never run the .exe directly
 ```
 
+After verifying the app launches correctly, **always unregister** to avoid stale AppX registrations that interfere with subsequent deployments:
+
+```bash
+winapp unregister --force --quiet
+```
+
 When a build error points at a UWP API, fetch the relevant anchor (e.g. `CS0246` on `Window.Current` → `-Anchor windowing`; analyzer warning on `CoreDispatcher` → `-Anchor threading`). One anchor at a time.
 
 > **Build command discipline:** prefer `winapp build`/`winapp run` (clean final line). If you must use `dotnet build` from the powershell tool in **async** mode, do NOT pipe through a `Where-Object` filter — on a clean build the filter swallows every line and subsequent `read_powershell` returns nothing. Either run **sync**, leave output unfiltered, or append a sentinel: `dotnet build -c Debug; "BUILD_EXIT=$LASTEXITCODE"`.

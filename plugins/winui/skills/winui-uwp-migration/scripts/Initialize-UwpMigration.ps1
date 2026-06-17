@@ -1,24 +1,9 @@
 <#
 .SYNOPSIS
-Mandatory bootstrap for UWP → WinUI 3 migration. Owns every mechanical step LLMs reliably skip or get wrong. Run BEFORE any manual edit.
+Mandatory bootstrap for UWP → WinUI 3 migration. Run BEFORE any manual edit.
 
 .DESCRIPTION
-Each step below maps to the correspondingly-numbered `# ─── N.` section in the code. Run `Validate-UwpMigration.ps1` at the end of the SKILL.md workflow to confirm residue grep, mapping integrity, deferred consistency, build cleanliness, and runtime smoke.
-
-Steps:
-1. Copy .xaml/.cs/.resw/asset/.appxmanifest from source to target, preserving folder structure
-1b. Merge sibling `shared/` folder (cross-language SDK Sample layout) if present — flat-copy its files into target root so they participate in namespace rewrite and inventory scan. UWP samples that support multiple languages keep .xaml in `<sample>\shared\` (referenced by `<Page Include="..\shared\X.xaml" />` in the cs csproj) and `-Source <sample>\cs\` alone would miss them.
-2. Preserve the UWP .csproj at .uwp-source/ as .csproj.reference (prevents MSBuild discovery)
-2b. Patch WinUI 3 .csproj RuntimeIdentifier to follow $(Platform) (fixes NETSDK1083 "RID 'win-arm64' and PlatformTarget 'x64' must be compatible" on ARM64 hosts where VS opens the project at solution platform x64)
-3. Namespace mass-rewrite: Windows.UI.Xaml → Microsoft.UI.Xaml across all copied .cs/.xaml
-4a. Filter-prone class neutralization (RootFrameNavigationHelper → no-op stub, etc.)
-4b/4c. Per-file triage against unsupported-api-inventory.json + inline TODO injection (`// TODO[migrate-NNN]: see PATTERNS.md#<anchor>` — anchor-only, never an API name)
-5. Pre-seed MIGRATION-MAPPING.md (File / Triage / Status only — no Notes column to avoid loading the agent's context with concentrated API-name listings)
-6. Pre-seed MIGRATION-DEFERRED.md (generic anchor-based rationale, no API names)
-7. Write .bootstrap-meta.json (schema v2; includes perFileMode for BATCH vs SEQUENTIAL)
-8. Print a `=== BOOTSTRAP COMPLETE ===` summary block
-
-Files with a sensitive-tier namespace (capture/speech/sensors/geolocation/bluetooth/point-of-service/proximity) are marked SEQUENTIAL in perFileMode (fix one TODO at a time, build after each). All other files are BATCH.
+Copies UWP source into a WinUI 3 scaffold, rewrites namespaces, injects TODO markers for unsupported APIs, and generates MIGRATION-MAPPING.md. See SKILL.md for the full workflow; run Validate-UwpMigration.ps1 after migration is complete.
 
 .PARAMETER Source
 UWP project's C# source folder (contains the .csproj and Package.appxmanifest).

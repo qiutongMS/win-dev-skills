@@ -959,6 +959,23 @@ if ($failures -eq 0 -and -not $env:UWP_MIGRATION_SKIP_SMOKE_LAUNCH) {
     }
 }
 
+# ─── AppX registration cleanup ─────────────────────────────────────────────────
+# Smoke launch (and any agent-initiated `winapp run` during Step 3) leaves a
+# dev-registered AppX package. If not cleaned up, the runner's subsequent
+# staging may conflict with the stale registration (identity collision).
+$cleanupManifest = Join-Path $Target 'Package.appxmanifest'
+if (Test-Path -LiteralPath $cleanupManifest) {
+    try {
+        $unregOut = & winapp unregister --manifest $cleanupManifest --force --quiet 2>&1 | Out-String
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "[INFO] AppX dev-registration cleaned up"
+        }
+        # Exit code != 0 is fine — means nothing was registered (common when smoke launch was skipped)
+    } catch {
+        # Best-effort; don't fail validation over cleanup issues
+    }
+}
+
 # ─── Summary ───────────────────────────────────────────────────────────────────
 # Always write the diagnostics file (even when empty) so its presence is predictable. The agent can grep / open it on FAIL without guessing.
 Set-Content -LiteralPath $diagPath -Value $diagLines -Encoding UTF8
