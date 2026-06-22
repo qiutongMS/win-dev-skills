@@ -49,6 +49,7 @@
   "residueOnly": [
     { "pattern": "using\\s+Windows\\.UI\\.Xaml",                               "name": "using Windows.UI.Xaml",      "reason": "Should have been rewritten by Initialize-UwpMigration.ps1" },
     { "pattern": "Windows\\.UI\\.Xaml\\.(Controls|Data|Documents|Input|Markup|Media|Navigation|Shapes|Automation|Hosting)", "name": "Windows.UI.Xaml.* (fully-qualified)", "reason": "Should have been rewritten by Initialize-UwpMigration.ps1" },
+    { "pattern": "Windows\\.UI\\.Text\\.(?!Core\\b)",                         "name": "Windows.UI.Text.*",          "reason": "Safe namespace rewrite target is Microsoft.UI.Text" },
     { "pattern": "xmlns:[a-zA-Z]+=\"using:Windows\\.UI\\.Xaml",                "name": "xmlns: using:Windows.UI.Xaml",   "reason": "XAML xmlns clause should have been rewritten" },
     { "pattern": "Microsoft\\.NETCore\\.UniversalWindowsPlatform",             "name": "Microsoft.NETCore.UniversalWindowsPlatform PackageReference", "reason": "UWP-only NuGet — drop and use Microsoft.WindowsAppSDK" },
     { "pattern": "<TargetPlatformIdentifier>\\s*UAP",                          "name": "<TargetPlatformIdentifier>UAP", "reason": "UWP csproj marker — should not appear in WinAppSDK project" },

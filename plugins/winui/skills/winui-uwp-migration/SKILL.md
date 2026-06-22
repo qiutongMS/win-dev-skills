@@ -105,6 +105,12 @@ winapp build
 winapp run    # never run the .exe directly
 ```
 
+If the app uses the common SDK-sample shell (`ScenarioControl` + content pane / `Frame`), do a **parity smoke check before declaring success**:
+
+1. Confirm the app launches on the same default scenario/content state as the source.
+2. Click at least one non-default scenario item and confirm the **right-side content actually changes** to that scenario's page/control, not just the left-nav selection.
+3. For pages driven by startup `SelectionChanged` / `Loaded` / `Toggled` handlers, verify those handlers still guard against partially initialized state during launch.
+
 After verifying the app launches correctly, **always unregister** to avoid stale AppX registrations that interfere with subsequent deployments:
 
 ```bash
@@ -141,6 +147,7 @@ Validator checks: residue grep (no `Windows.UI.Xaml` / unsupported APIs in non-d
 - Preserve the sample's primary interaction behaviors end-to-end, especially command actions, item-click navigation, selection-driven content changes, and detail-page transitions.
 - Preserve feature-specific semantics, not just compilability. Do not replace a specialized UWP behavior with a weaker generic API unless the user-visible result is still equivalent; if no equivalent exists, document it explicitly in `MIGRATION-DEFERRED.md` instead of silently degrading the scenario.
 - For each migrated scenario, preserve at least one concrete observable outcome from the source flow: a status text update, a newly added item, a navigation to the detail page, a scenario-specific control appearing, or another visible end-state the user can verify.
+- For the common SDK-sample shell, treat **"default scenario loads on startup"** and **"scenario selection swaps the visible right-pane content"** as release gates, not polish.
 
 ### API-level
 

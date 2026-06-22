@@ -156,21 +156,85 @@ if ($winuiCsprojs.Count -eq 0) {
     Write-Host "    RuntimeIdentifier pattern not found in any .csproj — template likely changed; skipped"
 }
 
-# ─── 3. Namespace mass-replace: Windows.UI.Xaml → Microsoft.UI.Xaml ────────────
+# ─── 3. Namespace mass-replace: safe UWP namespace swaps ───────────────────────
 $excludeDirs = @('bin', 'obj', '.uwp-source', '.vs', '.git', '.github', '.copilot')
 $excludePattern = '\\(' + ($excludeDirs -join '|') + ')\\'
 $nsFiles = Get-ChildItem -Path $Target -Recurse -File -Include *.cs,*.xaml -ErrorAction SilentlyContinue |
     Where-Object { $_.FullName -notmatch $excludePattern }
 $nsChanged = 0
+$safeNamespaceRewrites = @(
+    @{ From = 'Windows\.UI\.Xaml'; To = 'Microsoft.UI.Xaml' },
+    @{ From = 'Windows\.UI\.Text'; To = 'Microsoft.UI.Text' }
+)
 foreach ($f in $nsFiles) {
     $orig = [System.IO.File]::ReadAllText($f.FullName)
-    $new = $orig -replace 'Windows\.UI\.Xaml', 'Microsoft.UI.Xaml'
+    $new = $orig
+    foreach ($rewrite in $safeNamespaceRewrites) {
+        $new = $new -replace $rewrite.From, $rewrite.To
+    }
     if ($new -ne $orig) {
         [System.IO.File]::WriteAllText($f.FullName, $new)
         $nsChanged++
     }
 }
-Write-Host "    Rewrote Windows.UI.Xaml -> Microsoft.UI.Xaml in $nsChanged of $($nsFiles.Count) .cs/.xaml files"
+Write-Host "    Rewrote safe UWP namespaces in $nsChanged of $($nsFiles.Count) .cs/.xaml files"
+
+# ─── 3b. Normalize copied UWP package manifests for packaged WinUI 3 desktop ──
+# The source Package.appxmanifest often overwrites the scaffold's desktop-ready
+# manifest wholesale, leaving UWP-only markers behind. Fix the mechanical bits
+# up front so the agent can focus on behavioral parity instead of rediscovering
+# the same manifest edits every run.
+$manifestFiles = Get-ChildItem -Path $Target -Recurse -File -Filter 'Package.appxmanifest' -ErrorAction SilentlyContinue |
+    Where-Object { $_.FullName -notmatch $excludePattern }
+$manifestPatched = 0
+foreach ($manifest in $manifestFiles) {
+    $orig = [System.IO.File]::ReadAllText($manifest.FullName)
+    $new = $orig
+
+    $new = [regex]::Replace(
+        $new,
+        '<TargetDeviceFamily\s+Name="Windows\.Universal"([^>]*)/>',
+        '<TargetDeviceFamily Name="Windows.Desktop"$1 />'
+    )
+
+    $packageMatch = [regex]::Match($new, '<Package\b[^>]*>')
+    if ($packageMatch.Success) {
+        $packageTag = $packageMatch.Value
+        $updatedPackageTag = $packageTag
+
+        if ($updatedPackageTag -notmatch 'xmlns:rescap\s*=') {
+            $updatedPackageTag = $updatedPackageTag -replace '>$', ' xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">'
+        }
+
+        if ($updatedPackageTag -match 'IgnorableNamespaces\s*=\s*"([^"]*)"') {
+            $ignorableValue = $matches[1]
+            if ($ignorableValue -notmatch '(^|\s)rescap(\s|$)') {
+                $replacement = ($ignorableValue.Trim() + ' rescap').Trim()
+                $updatedPackageTag = [regex]::Replace($updatedPackageTag, 'IgnorableNamespaces\s*=\s*"([^"]*)"', "IgnorableNamespaces=`"$replacement`"")
+            }
+        } else {
+            $updatedPackageTag = $updatedPackageTag -replace '>$', ' IgnorableNamespaces="uap rescap">'
+        }
+
+        if ($updatedPackageTag -ne $packageTag) {
+            $new = $new.Substring(0, $packageMatch.Index) + $updatedPackageTag + $new.Substring($packageMatch.Index + $packageTag.Length)
+        }
+    }
+
+    if ($new -match '<Capabilities>') {
+        if ($new -notmatch '<rescap:Capability\s+Name="runFullTrust"\s*/>') {
+            $new = $new -replace '<Capabilities>', "<Capabilities>`r`n    <rescap:Capability Name=`"runFullTrust`" />"
+        }
+    } elseif ($new -match '</Package>') {
+        $new = $new -replace '</Package>', "  <Capabilities>`r`n    <rescap:Capability Name=`"runFullTrust`" />`r`n  </Capabilities>`r`n</Package>"
+    }
+
+    if ($new -ne $orig) {
+        [System.IO.File]::WriteAllText($manifest.FullName, $new)
+        $manifestPatched++
+        Write-Host "    Normalized Package.appxmanifest for WinUI 3 desktop: $([System.IO.Path]::GetRelativePath($Target, $manifest.FullName))"
+    }
+}
 
 # ─── 4a. Filter-prone class neutralization ────────────────────────────────────
 # Some SDK Samples boilerplate helpers contain UWP-specific patterns whose WinUI 3 equivalents require low-level Win32 keyboard interop. The model provider's content-safety filter routinely blocks model output containing those patterns and kills the trial. Replace those classes with no-op stubs *before* the agent ever sees them.
@@ -497,6 +561,7 @@ if ($sharedSourcePath) {
     Write-Host "  shared/ merged      : $sharedCopiedCount from $sharedSourcePath"
 }
 Write-Host "Namespace rewrites    : $nsChanged of $($nsFiles.Count) .cs/.xaml files"
+Write-Host "Manifest normalization: $manifestPatched file(s)"
 Write-Host "Csproj ARM64 RID fix  : $csprojPatched patched, $csprojAlreadyPatched already-patched"
 Write-Host "Neutralized classes   : $($neutralizedFiles.Count) file(s)"
 Write-Host "Triage breakdown      :"
